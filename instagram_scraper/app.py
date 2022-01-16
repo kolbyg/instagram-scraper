@@ -17,6 +17,7 @@ import socket
 import sys
 import textwrap
 import time
+import random
 
 try:
     from urllib.parse import urlparse
@@ -93,7 +94,7 @@ class InstagramScraper(object):
                             latest_stamps=False, cookiejar=None, filter_location=None, filter_locations=None,
                             media_types=['image', 'video', 'story-image', 'story-video'],
                             tag=False, location=False, search_location=False, comments=False,
-                            verbose=0, include_location=False, filter=None, proxies={}, no_check_certificate=False,
+                            verbose=0, include_location=False, filter=None, proxies={}, no_check_certificate=False, random_delay=False, 
                                                         template='{urlname}', log_destination='')
 
         allowed_attr = list(default_attr.keys())
@@ -168,6 +169,13 @@ class InstagramScraper(object):
             if self.quit:
                 return
         time.sleep(secs % min_delay)
+
+    def randsleep(self, secs):
+        randfloat = (random.randrange(1,10,1) / 10)
+        randint = random.randrange(1,10,1)
+        delay = (secs + randfloat + randint)
+        print("sleeping for " + str(delay) + " seconds")
+        time.sleep(delay)
 
     def _retry_prompt(self, url, exception_message):
         """Show prompt and return True: retry, False: ignore, None: abort"""
@@ -479,7 +487,8 @@ class InstagramScraper(object):
                 iter = 0
                 for item in tqdm.tqdm(media_generator(value), desc='Searching {0} for posts'.format(value), unit=" media",
                                       disable=self.quiet):
-
+                    print("sleeping on query")
+                    self.randsleep(10)
                     if self.filter_locations:
                         if item.get("location") is None or self.get_key_from_value(self.filter_locations, item["location"].get("id")) is None:
                             continue
@@ -816,6 +825,17 @@ class InstagramScraper(object):
         iter = 0
         for item in tqdm.tqdm(self.query_media_gen(user), desc='Searching {0} for posts'.format(username),
                               unit=' media', disable=self.quiet):
+            if RANDOM_DELAY:
+                print("\nsleeping on get_media")
+                self.randsleep(5)
+                remainiter = iter % 10
+                remainiter2 = iter % 100
+                if remainiter == 0 and iter != 0:
+                    print("\nadding long sleep")
+                    self.randsleep(60)
+                if remainiter2 == 0 and iter != 0:
+                    print("\nadding extra long sleep")
+                    self.randsleep(300)
             # -Filter command line
             if self.filter:
                 if 'tags' in item:
@@ -1476,6 +1496,7 @@ def main():
     parser.add_argument('--search-location', action='store_true', default=False, help='Search for locations by name')
     parser.add_argument('--comments', action='store_true', default=False, help='Save post comments to json file')
     parser.add_argument('--no-check-certificate', action='store_true', default=False, help='Do not use ssl on transaction')
+    parser.add_argument('--random-delay', action='store_true', default=False, help='Add a random delay to all media downloads')
     parser.add_argument('--interactive', '-i', action='store_true', default=False,
                         help='Enable interactive login challenge solving')
     parser.add_argument('--retry-forever', action='store_true', default=False,
@@ -1528,6 +1549,11 @@ def main():
     if args.retry_forever:
         global MAX_RETRIES
         MAX_RETRIES = sys.maxsize
+        
+    if args.random_delay:
+        global RANDOM_DELAY
+        print("Random sleep has been enabled")
+        RANDOM_DELAY = True
 
     scraper = InstagramScraper(**vars(args))
 
